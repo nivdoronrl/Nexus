@@ -12,6 +12,7 @@ export interface Project {
 
 export interface RawUpdate {
     id: string;
+    projectId: string;
     raw_text: string;
     timestamp: Date | string;
 }
