@@ -66,6 +66,7 @@ export async function POST(req: Request) {
       }
     `;
 
+        console.log("Gemini Prompt Sent:", prompt.substring(0, 500) + "...");
         const result = await genAI.models.generateContent({
             model: "gemini-flash-latest",
             contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -73,6 +74,7 @@ export async function POST(req: Request) {
                 responseMimeType: "application/json"
             }
         });
+        console.log("Gemini Raw Result:", JSON.stringify(result, null, 2));
 
         if (!result.candidates || result.candidates.length === 0) {
             return NextResponse.json({ error: "No AI candidates returned" }, { status: 500 });
@@ -150,8 +152,15 @@ export async function POST(req: Request) {
         revalidatePath('/');
         return NextResponse.json({ success: true, count: processed.length, projects: processed });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Synthesize API Error:", error);
+
+        if (error.status === 429 || error.message?.includes("429") || error.message?.includes("quota")) {
+            return NextResponse.json({
+                error: "Gemini API rate limit exceeded. Please try again in a few minutes or tomorrow (Free Tier limited to 20 requests/day)."
+            }, { status: 429 });
+        }
+
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
