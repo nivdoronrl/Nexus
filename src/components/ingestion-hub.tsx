@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, Loader2 } from "lucide-react";
 
-export function IngestionHub() {
+import { Project } from "@/types";
+
+interface IngestionHubProps {
+    projects: Project[];
+}
+
+export function IngestionHub({ projects }: IngestionHubProps) {
     const [updateText, setUpdateText] = useState("");
     const [loading, setLoading] = useState(false);
     const router = useRouter();
