@@ -77,7 +77,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "No AI candidates returned" }, { status: 500 });
         }
 
-        const responseText = result.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const part = result.candidates?.[0]?.content?.parts?.[0];
+        if (!part || !part.text) {
+            return NextResponse.json({ error: "AI response missing text part" }, { status: 500 });
+        }
+
+        const responseText = part.text.replace(/```json/g, '').replace(/```/g, '').trim();
         console.log("GEMINI RAW RESPONSE:", responseText);
 
         let synthesized;
