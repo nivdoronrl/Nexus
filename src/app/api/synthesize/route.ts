@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       3. If a project is new, generate a valid kebab-case ID (e.g., "bio-stretch").
       4. For each project, extract:
          - project_name: The full official name.
-         - updated_accomplishments: Array of top 3 milestones achieved.
+         - new_milestones: Array of NEW accomplishments found in THIS update text only.
          - upcoming_steps: Array of next 3 critical steps.
          - project_health: "Green", "Yellow", or "Red".
          - overall_progress: The percentage (0-100). Look for "Estimated % complete" labels.
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
           {
             "project_id": "string",
             "project_name": "string",
-            "updated_accomplishments": ["bullet1", "bullet2"],
+            "new_milestones": ["string"],
             "upcoming_steps": ["bullet1", "bullet2"],
             "project_health": "Green",
             "overall_progress": 70
@@ -95,12 +95,20 @@ export async function POST(req: Request) {
 
         const processed = [];
         for (const update of synthesized.updates) {
+            // Find existing project to preserve history
+            const existing = allProjects.find(p => p.id === update.project_id);
+            const oldAccomplishments = existing?.accomplishments || [];
+
+            // Merge and deduplicate
+            const combined = [...(update.new_milestones || []), ...oldAccomplishments];
+            const uniqueAccomplishments = Array.from(new Set(combined));
+
             const updatePayload = {
                 name: update.project_name,
-                accomplishments: update.updated_accomplishments || [],
+                accomplishments: uniqueAccomplishments,
                 upcoming_steps: update.upcoming_steps || [],
                 current_health: update.project_health || "Green",
-                overall_progress: typeof update.overall_progress === 'number' ? update.overall_progress : 0,
+                overall_progress: typeof update.overall_progress === 'number' ? update.overall_progress : (existing?.overall_progress || 0),
                 last_update_timestamp: new Date().toISOString()
             };
 
