@@ -5,6 +5,8 @@ import { ArrowLeft, CheckCircle2, CircleDashed, Activity, Calendar } from "lucid
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const project = await getProject(id);

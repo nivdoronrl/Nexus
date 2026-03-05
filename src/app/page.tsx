@@ -2,6 +2,8 @@ import { getProjects } from "@/lib/data";
 import { TrackerCard } from "@/components/tracker-card";
 import { IngestionHub } from "@/components/ingestion-hub";
 
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   const projects = await getProjects();
 

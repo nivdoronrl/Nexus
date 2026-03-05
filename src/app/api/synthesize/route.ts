@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/firebase-admin";
 import { mockStore } from "@/lib/mock-store";
 import { Project } from "@/types";
@@ -103,12 +104,28 @@ export async function POST(req: Request) {
             const combined = [...(update.new_milestones || []), ...oldAccomplishments];
             const uniqueAccomplishments = Array.from(new Set(combined));
 
+            // Robust progress parsing
+            let parsedProgress = 0;
+            if (typeof update.overall_progress === 'number') {
+                parsedProgress = update.overall_progress;
+            } else if (typeof update.overall_progress === 'string') {
+                // Handle cases like "75%", "~75%", "approx 75"
+                const match = update.overall_progress.match(/(\d+)/);
+                if (match) {
+                    parsedProgress = parseInt(match[1]);
+                }
+            }
+
+            if (parsedProgress === 0 && existing) {
+                parsedProgress = existing.overall_progress;
+            }
+
             const updatePayload = {
                 name: update.project_name,
                 accomplishments: uniqueAccomplishments,
                 upcoming_steps: update.upcoming_steps || [],
                 current_health: update.project_health || "Green",
-                overall_progress: typeof update.overall_progress === 'number' ? update.overall_progress : (existing?.overall_progress || 0),
+                overall_progress: Math.min(100, Math.max(0, parsedProgress)),
                 last_update_timestamp: new Date().toISOString()
             };
 
@@ -125,8 +142,12 @@ export async function POST(req: Request) {
                 mockStore.updateProject(update.project_id, updatePayload);
             }
             processed.push(update.project_id);
+            if (adminDb) {
+                revalidatePath(`/project/${update.project_id}`);
+            }
         }
 
+        revalidatePath('/');
         return NextResponse.json({ success: true, count: processed.length, projects: processed });
 
     } catch (error) {
