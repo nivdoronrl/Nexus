@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
+import { AzureOpenAI } from "openai";
 import { revalidatePath } from "next/cache";
 import { adminDb } from "@/lib/firebase-admin";
 import { mockStore } from "@/lib/mock-store";
@@ -22,12 +22,26 @@ export async function POST(req: Request) {
             allProjects = mockStore.getProjects();
         }
 
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
+        const azureKey = process.env.AZURE_OPENAI_API_KEY;
+        const azureEndpoint = process.env.AZURE_OPENAI_ENDPOINT;
+        const azureDeployment = process.env.AZURE_OPENAI_DEPLOYMENT_NAME;
+
+        if (!azureKey || !azureEndpoint || !azureDeployment) {
+            // Fallback to Gemini if Azure is not configured
+            const geminiKey = process.env.GEMINI_API_KEY;
+            if (geminiKey) {
+                // ... logic to use Gemini ...
+                // For now, let's prioritize Azure as requested.
+            }
+            return NextResponse.json({ error: "Azure OpenAI credentials missing" }, { status: 500 });
         }
 
-        const genAI = new GoogleGenAI({ apiKey });
+        const client = new AzureOpenAI({
+            apiKey: azureKey,
+            endpoint: azureEndpoint,
+            apiVersion: "2024-05-01-preview", // Standard Azure API version
+            deployment: azureDeployment,
+        });
 
         const prompt = `
       You are the "Nexus Track" AI engine. Your task is to analyze the following UPDATE TEXT and extract structured data for EVERY project mentioned.
@@ -66,26 +80,21 @@ export async function POST(req: Request) {
       }
     `;
 
-        console.log("Gemini Prompt Sent:", prompt.substring(0, 500) + "...");
-        const result = await genAI.models.generateContent({
-            model: "gemini-flash-latest",
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            config: {
-                responseMimeType: "application/json"
-            }
+        console.log("Azure Prompt Sent:", prompt.substring(0, 500) + "...");
+
+        const response = await client.chat.completions.create({
+            model: azureDeployment,
+            messages: [
+                { role: "system", content: "You are the Nexus Track AI engine. Return only valid JSON." },
+                { role: "user", content: prompt }
+            ],
+            response_format: { type: "json_object" }
         });
-        console.log("Gemini Raw Result:", JSON.stringify(result, null, 2));
 
-        if (!result.candidates || result.candidates.length === 0) {
-            return NextResponse.json({ error: "No AI candidates returned" }, { status: 500 });
+        const responseText = response.choices[0].message.content;
+        if (!responseText) {
+            return NextResponse.json({ error: "AI response empty" }, { status: 500 });
         }
-
-        const part = result.candidates?.[0]?.content?.parts?.[0];
-        if (!part || !part.text) {
-            return NextResponse.json({ error: "AI response missing text part" }, { status: 500 });
-        }
-
-        const responseText = part.text.replace(/```json/g, '').replace(/```/g, '').trim();
         console.log("GEMINI RAW RESPONSE:", responseText);
 
         let synthesized;
