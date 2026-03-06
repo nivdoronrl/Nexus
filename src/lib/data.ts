@@ -48,3 +48,22 @@ export async function getProject(id: string): Promise<Project | null> {
     }
     return mockStore.getProject(id) || null;
 }
+
+export async function getIngestionLogs(): Promise<any[]> {
+    try {
+        if (adminDb) {
+            const snapshot = await adminDb.collection('ingestion_logs')
+                .orderBy('timestamp', 'desc')
+                .limit(50)
+                .get();
+
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        }
+    } catch (error) {
+        console.warn("Failed to fetch ingestion logs:", error);
+    }
+    return [];
+}

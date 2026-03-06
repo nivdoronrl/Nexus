@@ -177,6 +177,18 @@ export async function POST(req: Request) {
             }
         }
 
+        // --- NEW: Global Ingestion Log ---
+        if (adminDb) {
+            await adminDb.collection("ingestion_logs").add({
+                timestamp: new Date().toISOString(),
+                raw_text: pasted_update.substring(0, 10000), // Cap size
+                projects_detected: processed,
+                status: "Success",
+                ai_model: usedModel
+            });
+        }
+        // --------------------------------
+
         revalidatePath('/');
         return NextResponse.json({ success: true, count: processed.length, projects: processed });
 

@@ -28,3 +28,12 @@ export interface ProjectUpdate {
 export interface BulkSynthesizeResponse {
     updates: ProjectUpdate[];
 }
+
+export interface IngestionLog {
+    id: string;
+    timestamp: string;
+    raw_text: string;
+    projects_detected: string[];
+    status: string;
+    ai_model: string;
+}
